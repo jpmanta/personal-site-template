@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "my-personal-site",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-01",
+  // Your photo and any other files go in the public/ folder.
+  "assets": { "directory": "./public" },
+  // Storage for goal checkmarks and votes. Cloudflare creates it for you.
+  "kv_namespaces": [{ "binding": "SITE" }],
+  "observability": { "enabled": true }
+}

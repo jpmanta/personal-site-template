@@ -1,0 +1,19 @@
+{
+  "name": "my-personal-site",
+  "private": true,
+  "description": "A personal website with goals you cross off, essays, and public voting. Free to host on Cloudflare.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  },
+  "cloudflare": {
+    "bindings": {
+      "ADMIN_PASSWORD": {
+        "description": "Pick a password. You'll type it on your site to cross off goals and read private feedback. Don't reuse an important password."
+      }
+    }
+  }
+}
