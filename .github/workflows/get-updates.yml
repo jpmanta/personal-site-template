@@ -1,0 +1,31 @@
+# Get updates
+# Every Monday (or when you click "Run workflow" under Actions), this pulls the
+# newest engine from Jonathan's template into YOUR site. It never touches your
+# content: src/site.js, public/ (your photo) and wrangler.jsonc are left alone.
+# Cloudflare republishes your site automatically after the commit.
+# See what changed in CHANGELOG.md.
+name: Get updates
+on:
+  schedule:
+    - cron: "23 14 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update:
+    if: github.repository != 'jpmanta/personal-site-template'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull the latest engine from the template
+        run: |
+          git remote add template https://github.com/jpmanta/personal-site-template.git
+          git fetch --depth 1 template main
+          for f in src/worker.js STARTER-PROMPT.md README.md CHANGELOG.md; do
+            git checkout template/main -- "$f" 2>/dev/null || echo "Skipping $f (not in the template)"
+          done
+          if git diff --cached --quiet; then echo "Already up to date."; exit 0; fi
+          git config user.name "site-updates"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Get the latest updates from personal-site-template"
+          git push
