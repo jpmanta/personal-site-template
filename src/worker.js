@@ -91,6 +91,10 @@ blockquote{margin:0 0 14px}blockquote cite{display:block;font-size:17px;font-sty
 .note{display:block;margin:4px 0 0;font-size:17px;font-style:italic;color:var(--faint)}
 .group{display:block;margin:12px 0 2px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
 .score{margin-left:8px;font-size:14px;font-style:italic;color:var(--faint)}
+.vrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 2px}.goals li>time:empty{display:none}
+.vrow button{font:400 14px/1 system-ui,-apple-system,sans-serif;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);cursor:pointer}
+.vrow button:hover{border-color:var(--gold)}.vrow button[aria-pressed=true]{background:var(--navy);border-color:var(--navy);color:var(--bg)}
+.vrow .flash{font-size:13px;font-style:italic;color:var(--faint)}
 .card{margin:22px 0 6px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:16px;color:var(--muted)}
 .card b{display:block;font-weight:500;color:var(--navy);margin:0 0 6px}
 .card form{display:grid;gap:8px}.card select,.card textarea{font:inherit;font-size:16px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--fg)}
@@ -225,11 +229,11 @@ function goalsPage() {
   const voting = F.voting && rankedIds.size
     ? `<div class="card"><b>Help me rewrite this list</b>
 <form id="v-form"><select id="v-id" aria-label="Which line"></select>
-<div class="row"><label><input type="radio" name="v" value="keep" checked> Keep it</label><label><input type="radio" name="v" value="cut"> Cut it</label><label><input type="radio" name="v" value="change"> Change it</label></div>
-<textarea id="v-why" maxlength="600" aria-label="Why, or your change" placeholder="Why? Or how would you change it?"></textarea>
+<div class="row"><label><input type="radio" name="v" value="keep" checked> Keep it</label><label><input type="radio" name="v" value="cut"> Cut it</label></div>
+<textarea id="v-why" maxlength="600" aria-label="Why, or your change" placeholder="Why? Or how would you rewrite it?"></textarea>
 <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
 <button class="btn" type="submit">Send</button><div id="v-msg" style="color:var(--navy)"></div></form>
-<div class="small">Vote counts are public. What you write goes only to me, unless I answer it above in “Objections, answered” (never with your name). One vote per line per day.</div></div>`
+<div class="small">Vote counts are public. What you write goes only to me, unless I answer it above in “Objections, answered” (never with your name). One vote per line, and you can change it or take it back any time.</div></div>`
     : "";
   return page({
     title: `Goals · ${site.name}`,
@@ -275,12 +279,23 @@ sel.classList.add("vis-hidden");sel.tabIndex=-1;sel.setAttribute("aria-hidden","
 fetch("/api/votes/answers").then(function(r){return r.json()}).then(function(j){var a=j.answers||[];if(!a.length)return;var box=document.getElementById("answers"),l=document.getElementById("ans-list");
 a.forEach(function(x){var d=document.createElement("div");d.className="ans";var t=document.createElement("div");t.className="line";var li=lis.filter(function(y){return y.dataset.id===x.id})[0];t.textContent=li?li.querySelector(".t").textContent:"";
 var q=document.createElement("div");q.className="q";q.textContent="“"+x.obj+"”";var an=document.createElement("div");an.className="a";an.textContent=x.ans;d.append(t,q,an);l.appendChild(d);});box.hidden=false;}).catch(function(){});
-var t0=Date.now();
-function show(c){lis.forEach(function(li){var x=c[li.dataset.id];if(!x)return;var n=(x.keep||0)+(x.cut||0)+(x.change||0);if(!n)return;var s=li.querySelector(".score");if(!s){s=document.createElement("span");s.className="score";li.querySelector(".t").after(s);}s.textContent=Math.round(100*(x.keep||0)/n)+"% keep · "+n+(n==1?" vote":" votes");});}
-fetch("/api/votes").then(function(r){return r.json()}).then(function(j){show(j.counts||{})}).catch(function(){});
-document.getElementById("v-form").addEventListener("submit",function(e){e.preventDefault();var f=e.target,m=document.getElementById("v-msg");
-fetch("/api/votes",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:sel.value,v:(f.querySelector("input[name=v]:checked")||{}).value,why:document.getElementById("v-why").value,website:f.website.value,ts:t0})})
-.then(function(r){return r.json()}).then(function(j){m.textContent=j.ok?"Thank you. I read every one of these.":(j.error||"That didn't work. Try again later.");if(j.counts)show(j.counts);if(j.ok)document.getElementById("v-why").value="";})
+// Standing Keep/Cut votes: one per visitor per line. Tap to vote, tap again to take it back, tap the other to switch.
+var U=null,V={},C={};try{U=localStorage.getItem("voteUid");V=JSON.parse(localStorage.getItem("myVotes")||"{}")||{}}catch(e){}
+if(!U){U=(Date.now().toString(36)+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2)).slice(0,24);try{localStorage.setItem("voteUid",U)}catch(e){}}
+function keepV(){try{localStorage.setItem("myVotes",JSON.stringify(V))}catch(e){}}
+function paint(){lis.forEach(function(li){var r=li.querySelector(":scope>.vrow");if(!r)return;var x=C[li.dataset.id]||{},v=V[li.dataset.id],up=r.querySelector(".up"),dn=r.querySelector(".dn");
+up.querySelector("b").textContent=x.keep||0;dn.querySelector("b").textContent=x.cut||0;up.setAttribute("aria-pressed",v==="keep");dn.setAttribute("aria-pressed",v==="cut");
+up.setAttribute("aria-label",v==="keep"?"Take back my keep vote":"Keep this");dn.setAttribute("aria-label",v==="cut"?"Take back my cut vote":"Cut this");});}
+function cast(id,v){return fetch("/api/votes/tap",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:id,v:v,u:U})}).then(function(r){return r.json()}).then(function(j){if(j.counts)C=j.counts;if(j.ok){if(j.mine)V[id]=j.mine;else delete V[id];keepV();}paint();return j;});}
+lis.forEach(function(li){var r=document.createElement("div");r.className="vrow";r.innerHTML='<button type="button" class="up">▲ Keep <b>0</b></button><button type="button" class="dn">▼ Cut <b>0</b></button><span class="flash" aria-live="polite"></span>';
+var t=li.querySelector(":scope>time");t.after(r);var fl=r.querySelector(".flash");
+function tap(want){var v=V[li.dataset.id]===want?"none":want;cast(li.dataset.id,v).then(function(j){fl.textContent=j.ok?(v==="none"?"Vote taken back.":"Thanks! Tap again to take it back."):(j.error||"Try again later.");}).catch(function(){fl.textContent="Try again later.";});}
+r.querySelector(".up").onclick=function(){tap("keep")};r.querySelector(".dn").onclick=function(){tap("cut")};});
+fetch("/api/votes/mine?u="+encodeURIComponent(U)).then(function(r){return r.json()}).then(function(j){V=j.mine||{};C=j.counts||{};keepV();paint();}).catch(function(){});
+document.getElementById("v-form").addEventListener("submit",function(e){e.preventDefault();var f=e.target,m=document.getElementById("v-msg"),w=document.getElementById("v-why"),id=sel.value,v=(f.querySelector("input[name=v]:checked")||{}).value||"keep",why=(w.value||"").trim();
+if(id==="new"&&!why){m.textContent="Tell me your idea in the box.";return;}
+var note=function(){if(!why)return Promise.resolve({ok:true});return fetch("/api/votes",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:id,v:v,why:why,website:f.website.value})}).then(function(r){return r.json()});};
+(id==="new"?note():cast(id,v).then(function(j){return j.ok?note():j;})).then(function(j){m.textContent=j&&j.ok?"Thank you. I read every one of these.":((j&&j.error)||"That didn't work. Try again later.");if(j&&j.ok)w.value="";})
 .catch(function(){m.textContent="That didn't work. Try again later.";});});
 })();
 </script>`,
@@ -367,41 +382,86 @@ async function goalsApi(request, env) {
   return json({ ok: true });
 }
 
+// Votes on ranked lines. Each visitor (a random id kept in their browser) has at most one
+// standing vote per line, "keep" or "cut", which they can change or take back any time.
+// New voters are capped per network per day, and notes per network per day.
+function sameOrigin(request, url) {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+  try { return new URL(origin).host === url.host; } catch { return false; }
+}
+async function readJson(request) {
+  const raw = await request.text();
+  if (raw.length > 4000) return null;
+  try { const f = JSON.parse(raw); return f && typeof f === "object" ? f : null; } catch { return null; }
+}
+const dayKey = async (prefix, request) =>
+  prefix + (await hash((request.headers.get("cf-connecting-ip") || "") + "|" + Math.floor(Date.now() / 86400000)));
+const voterKey = async (u) => "votes:voter:" + (await hash("u|" + u));
+const validUid = (u) => /^[a-z0-9]{8,40}$/.test(u);
+
 async function votesApi(request, env, url) {
   if (!F.voting || !env.SITE) return json({ counts: {} });
   if (request.method === "GET") return json({ counts: await load(env, "votes:counts", {}) });
   if (request.method !== "POST") return json({ ok: false }, 405);
-  const origin = request.headers.get("origin");
-  let originHost = url.host;
-  try { if (origin) originHost = new URL(origin).host; } catch { originHost = ""; }
-  if (originHost !== url.host) return json({ ok: false, error: "Not allowed" }, 403);
-  const raw = await request.text();
-  if (raw.length > 4000) return json({ ok: false, error: "That's too long." }, 413);
-  let f;
-  try { f = JSON.parse(raw); } catch { return json({ ok: false, error: "Bad data" }, 400); }
+  if (!sameOrigin(request, url)) return json({ ok: false, error: "Not allowed" }, 403);
+  // Notes from "Help me rewrite this list" (the vote itself goes through /api/votes/tap).
+  const f = await readJson(request);
+  if (!f) return json({ ok: false, error: "Bad data" }, 400);
+  if (f.website) return json({ ok: true }); // bots
+  const id = String(f.id || ""), v = f.v === "cut" ? "cut" : "keep", why = String(f.why || "").trim().slice(0, 600);
+  if (!(rankedIds.has(id) || id === "new") || !why) return json({ ok: false, error: "Write something in the box." }, 400);
+  const lk = await dayKey("votes:notelim:", request);
+  const n = Number((await env.SITE.get(lk)) || 0);
+  if (n >= 30) return json({ ok: false, error: "That's a lot of notes for one day. Thank you! Try again tomorrow." }, 429);
+  await env.SITE.put(lk, String(n + 1), { expirationTtl: 172800 });
+  const notes = await load(env, "votes:notes", []);
+  notes.push({ id, v, why, date: new Date().toISOString() });
+  while (notes.length > 5000) notes.shift();
+  await env.SITE.put("votes:notes", JSON.stringify(notes));
+  return json({ ok: true });
+}
+
+async function myVotesApi(request, env, url) {
+  const counts = F.voting && env.SITE ? await load(env, "votes:counts", {}) : {};
+  const u = String(url.searchParams.get("u") || "");
+  if (!F.voting || !env.SITE || !validUid(u)) return json({ mine: {}, counts });
+  const M = await load(env, await voterKey(u), {});
+  const mine = {};
+  for (const k of Object.keys(M)) if (rankedIds.has(k)) mine[k] = M[k];
+  return json({ mine, counts });
+}
+
+async function tapApi(request, env, url) {
+  if (!F.voting || !env.SITE) return json({ ok: false, error: "Voting is off." }, 503);
+  if (request.method !== "POST") return json({ ok: false }, 405);
+  if (!sameOrigin(request, url)) return json({ ok: false, error: "Not allowed" }, 403);
+  const f = await readJson(request);
+  if (!f) return json({ ok: false, error: "Bad data" }, 400);
+  const id = String(f.id || ""), v = String(f.v || ""), u = String(f.u || "");
+  if (!rankedIds.has(id) || !["keep", "cut", "none"].includes(v)) return json({ ok: false, error: "Pick Keep or Cut." }, 400);
+  if (!validUid(u)) return json({ ok: false, error: "Refresh the page and try again." }, 400);
+  const vk = await voterKey(u);
+  let M = await load(env, vk, null);
+  if (!M) {
+    const lk = await dayKey("votes:newvoter:", request);
+    const n = Number((await env.SITE.get(lk)) || 0);
+    if (n >= 25) return json({ ok: false, error: "Too many new voters from this network today. Try again tomorrow." }, 429);
+    await env.SITE.put(lk, String(n + 1), { expirationTtl: 172800 });
+    M = {};
+  }
   const counts = await load(env, "votes:counts", {});
-  if (!f || f.website || (f.ts && Date.now() - Number(f.ts) < 1500)) return json({ ok: true, counts }); // bots
-  const id = String(f.id || ""), v = String(f.v || ""), why = String(f.why || "").trim().slice(0, 600);
-  if (!(rankedIds.has(id) || id === "new") || !["keep", "cut", "change"].includes(v))
-    return json({ ok: false, error: "Pick a line and a vote." }, 400);
-  if (id === "new" && !why) return json({ ok: false, error: "Tell me your idea in the box." }, 400);
-  const day = Math.floor(Date.now() / 86400000);
-  const key = "votes:ip:" + (await hash((request.headers.get("cf-connecting-ip") || "") + "|" + id + "|" + day));
-  if (await env.SITE.get(key)) return json({ ok: false, error: "You already voted on this line today. Thank you!", counts });
-  await env.SITE.put(key, "1", { expirationTtl: 172800 });
-  if (id !== "new") {
-    const c = counts[id] || { keep: 0, cut: 0, change: 0 };
-    c[v]++;
+  const cur = M[id], next = v === "none" ? undefined : v;
+  if (cur !== next) {
+    const c = counts[id] || { keep: 0, cut: 0 };
+    if (cur) c[cur] = Math.max(0, (c[cur] || 0) - 1);
+    if (next) c[next] = (c[next] || 0) + 1;
     counts[id] = c;
     await env.SITE.put("votes:counts", JSON.stringify(counts));
   }
-  if (why) {
-    const notes = await load(env, "votes:notes", []);
-    notes.push({ id, v, why, date: new Date().toISOString() });
-    while (notes.length > 5000) notes.shift();
-    await env.SITE.put("votes:notes", JSON.stringify(notes));
-  }
-  return json({ ok: true, counts });
+  if (next) M[id] = next; else delete M[id];
+  await env.SITE.put(vk, JSON.stringify(M));
+  return json({ ok: true, counts, mine: next || null });
 }
 
 // Public answers to readers' objections ("Objections, answered" on /goals).
@@ -438,6 +498,8 @@ export default {
     if (p === "/api/goals") return goalsApi(request, env);
     if (p === "/api/votes") return votesApi(request, env, url);
     if (p === "/api/votes/answers") return answersApi(request, env);
+    if (p === "/api/votes/tap") return tapApi(request, env, url);
+    if (p === "/api/votes/mine") return myVotesApi(request, env, url);
     if (p === "/api/votes/notes") {
       if (!env.SITE || !checkPassword(request, env)) return json({ error: "Unauthorized" }, 401);
       return json({ notes: await load(env, "votes:notes", []) });
