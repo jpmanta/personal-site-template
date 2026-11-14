@@ -17,6 +17,10 @@ export default {
     "Studying something at Some University.",
     "Building [My Project](https://example.com), 2026 onward.",
   ],
+  // Optional: one main ask, shown as a card under your lines.
+  // Leave it out (or delete it) if you don't want one.
+  // mainAsk: { text: "This year I'm building My Project. Come try it.", button: "Try My Project", url: "https://example.com" },
+
   // Quieter, italic lines for hobbies and personality.
   quietLines: [
     "Chess by day, jazz by night.",

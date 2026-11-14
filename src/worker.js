@@ -98,6 +98,20 @@ blockquote{margin:0 0 14px}blockquote cite{display:block;font-size:17px;font-sty
 .btn{justify-self:start;padding:6px 18px;border:1px solid var(--gold);border-radius:8px;background:transparent;color:var(--navy);font:italic 17px var(--serif);cursor:pointer}
 .small{font-size:13px;font-style:italic;color:var(--faint);margin-top:6px}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.nav{display:flex;flex-wrap:nowrap;gap:clamp(4px,1.2vw,8px);margin:0 0 22px;overflow-x:auto;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
+.nav a{flex:0 0 auto;white-space:nowrap;padding:6px clamp(8px,2.2vw,15px);border:1px solid var(--line);border-radius:999px;text-decoration:none;font-size:clamp(13px,3.6vw,17px);line-height:1.3;background:color-mix(in srgb,var(--gold) 6%,transparent)}
+.nav a:hover,.nav a:focus-visible{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 14%,transparent)}
+.ask{margin:28px 0 0;padding:16px 18px;border:1px solid var(--gold);border-radius:14px;background:color-mix(in srgb,var(--gold) 8%,transparent);font-size:19px}
+.ask p{margin:0 0 12px}.ask a{display:inline-block;padding:9px 22px;border-radius:999px;background:var(--navy);color:var(--bg);text-decoration:none;font:500 18px/1 var(--serif)}
+.pick{position:relative}.pick>button{width:100%;text-align:left;font:inherit;font-size:16px;padding:6px 30px 6px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--fg);cursor:pointer;position:relative}
+.pick>button::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;border-right:1px solid var(--gold);border-bottom:1px solid var(--gold);transform:translateY(-70%) rotate(45deg)}
+.pick ul{list-style:none;margin:4px 0 0;padding:6px 0;position:absolute;left:0;right:0;z-index:5;max-height:320px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.pick li{padding:6px 12px;cursor:pointer;line-height:1.35}.pick li[aria-selected=true],.pick li:hover{background:color-mix(in srgb,var(--gold) 12%,transparent)}
+.pick li.g{cursor:default;background:none;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);padding-top:10px}
+.vis-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ans{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:10px 0 0;padding:10px 0 0;border-top:1px solid var(--line)}.ans:first-of-type{border-top:0;padding-top:0}
+.ans .line{grid-column:1/-1;font-size:14px;font-style:italic;color:var(--faint)}.ans .q{color:var(--muted)}.ans .a{color:var(--fg)}
+@media (max-width:480px){.ans{grid-template-columns:1fr}}
 article p{margin:0 0 18px}article h2{font-size:26px}
 footer{margin-top:56px;font-size:16px;color:var(--faint)}
 @media (max-width:480px){body{font-size:20px}h1{font-size:38px}main{padding-top:64px}}
@@ -165,8 +179,9 @@ function homePage() {
 ${(site.lines || []).map((l) => `<li>${inline(l)}</li>`).join("\n")}
 ${(site.quietLines || []).map((l) => `<li class="quiet">${inline(l)}</li>`).join("\n")}
 </ul>
+${site.mainAsk?.button && site.mainAsk?.url ? `<div class="ask">${site.mainAsk.text ? `<p>${inline(site.mainAsk.text)}</p>` : ""}<a href="${esc(safeUrl(site.mainAsk.url))}">${esc(site.mainAsk.button)}</a></div>` : ""}
 <div class="more">
-${nav.length ? `<p>${nav.join(" · ")}</p>` : ""}
+${nav.length ? `<nav class="nav" aria-label="Pages">${nav.join("")}</nav>` : ""}
 ${sections.map(([t, b]) => `<details><summary>${t}</summary><div class="body">${b}</div></details>`).join("\n")}
 </div>
 ${contact.length ? `<p class="quiet" style="margin-top:44px">${contact.join(" · ")}</p>` : ""}`,
@@ -204,6 +219,9 @@ function goalsPage() {
       return goalLi(g.id, g.text, inner);
     })
     .join("\n");
+  const answers = F.voting && rankedIds.size
+    ? `<div class="card" id="answers" hidden><b>Objections, answered</b><div class="small" style="margin:0 0 8px">The strongest objections readers sent, and my answer to each.</div><div id="ans-list"></div></div>`
+    : "";
   const voting = F.voting && rankedIds.size
     ? `<div class="card"><b>Help me rewrite this list</b>
 <form id="v-form"><select id="v-id" aria-label="Which line"></select>
@@ -211,7 +229,7 @@ function goalsPage() {
 <textarea id="v-why" maxlength="600" aria-label="Why, or your change" placeholder="Why? Or how would you change it?"></textarea>
 <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
 <button class="btn" type="submit">Send</button><div id="v-msg" style="color:var(--navy)"></div></form>
-<div class="small">Vote counts are public. What you write goes only to me. One vote per line per day.</div></div>`
+<div class="small">Vote counts are public. What you write goes only to me, unless I answer it above in “Objections, answered” (never with your name). One vote per line per day.</div></div>`
     : "";
   return page({
     title: `Goals · ${site.name}`,
@@ -220,6 +238,7 @@ function goalsPage() {
     body: `<h1>Goals</h1><hr class="rule">
 ${G.intro ? `<p class="intro">${inline(G.intro)}</p>` : ""}
 <ul class="goals">${items}</ul>
+${answers}
 ${voting}
 <script>
 (function(){
@@ -238,6 +257,24 @@ var sel=document.getElementById("v-id");if(!sel)return;
 var lis=[].slice.call(document.querySelectorAll(".goals li")).filter(function(li){return ${JSON.stringify([...rankedIds])}.indexOf(li.dataset.id)>=0});
 lis.forEach(function(li){var o=document.createElement("option"),t=li.querySelector(".t").textContent;o.value=li.dataset.id;o.textContent=t.length>70?t.slice(0,68)+"…":t;sel.appendChild(o);});
 var o=document.createElement("option");o.value="new";o.textContent="A new idea for the list";sel.appendChild(o);
+// A picker that matches the site, grouped by section, with each line's full text. The real <select> stays (hidden) as the form value.
+(function(){var wrap=document.createElement("div");wrap.className="pick";var btn=document.createElement("button");btn.type="button";btn.setAttribute("aria-haspopup","listbox");btn.setAttribute("aria-expanded","false");
+var ul=document.createElement("ul");ul.setAttribute("role","listbox");ul.hidden=true;ul.tabIndex=-1;
+function full(id){if(id==="new")return "A new idea for the list";var li=lis.filter(function(x){return x.dataset.id===id})[0];return li?li.querySelector(".t").textContent:id;}
+function setv(id){sel.value=id;btn.textContent=full(id);[].forEach.call(ul.querySelectorAll("li[data-v]"),function(x){x.setAttribute("aria-selected",x.dataset.v===id?"true":"false")});}
+var last=null;lis.forEach(function(li){var g=li.parentElement.previousElementSibling;if(g&&g.classList.contains("group")&&g!==last){last=g;var h=document.createElement("li");h.className="g";h.textContent=g.textContent;h.setAttribute("aria-hidden","true");ul.appendChild(h);}
+var x=document.createElement("li");x.setAttribute("role","option");x.dataset.v=li.dataset.id;x.textContent=li.querySelector(".t").textContent;ul.appendChild(x);});
+var n=document.createElement("li");n.setAttribute("role","option");n.dataset.v="new";n.textContent="A new idea for the list";ul.appendChild(n);
+function open(o){ul.hidden=!o;btn.setAttribute("aria-expanded",o?"true":"false");if(o){var s=ul.querySelector("[aria-selected=true]");if(s)s.scrollIntoView({block:"nearest"});}}
+btn.onclick=function(){open(ul.hidden)};ul.onclick=function(e){var x=e.target.closest("li[data-v]");if(!x)return;setv(x.dataset.v);open(false);btn.focus();};
+document.addEventListener("click",function(e){if(!wrap.contains(e.target))open(false)});
+wrap.addEventListener("keydown",function(e){if(e.key==="Escape"){open(false);btn.focus();return;}if(e.key!=="ArrowDown"&&e.key!=="ArrowUp")return;e.preventDefault();var all=[].slice.call(ul.querySelectorAll("li[data-v]")),i=all.findIndex(function(x){return x.dataset.v===sel.value});i=Math.max(0,Math.min(all.length-1,i+(e.key==="ArrowDown"?1:-1)));setv(all[i].dataset.v);if(!ul.hidden)all[i].scrollIntoView({block:"nearest"});});
+// clicking a line's vote score or text elsewhere could preselect it later; for now start on the first line
+sel.classList.add("vis-hidden");sel.tabIndex=-1;sel.setAttribute("aria-hidden","true");sel.parentNode.insertBefore(wrap,sel);wrap.append(btn,ul);setv(sel.value||(lis[0]&&lis[0].dataset.id)||"new");})();
+// Objections, answered
+fetch("/api/votes/answers").then(function(r){return r.json()}).then(function(j){var a=j.answers||[];if(!a.length)return;var box=document.getElementById("answers"),l=document.getElementById("ans-list");
+a.forEach(function(x){var d=document.createElement("div");d.className="ans";var t=document.createElement("div");t.className="line";var li=lis.filter(function(y){return y.dataset.id===x.id})[0];t.textContent=li?li.querySelector(".t").textContent:"";
+var q=document.createElement("div");q.className="q";q.textContent="“"+x.obj+"”";var an=document.createElement("div");an.className="a";an.textContent=x.ans;d.append(t,q,an);l.appendChild(d);});box.hidden=false;}).catch(function(){});
 var t0=Date.now();
 function show(c){lis.forEach(function(li){var x=c[li.dataset.id];if(!x)return;var n=(x.keep||0)+(x.cut||0)+(x.change||0);if(!n)return;var s=li.querySelector(".score");if(!s){s=document.createElement("span");s.className="score";li.querySelector(".t").after(s);}s.textContent=Math.round(100*(x.keep||0)/n)+"% keep · "+n+(n==1?" vote":" votes");});}
 fetch("/api/votes").then(function(r){return r.json()}).then(function(j){show(j.counts||{})}).catch(function(){});
@@ -258,7 +295,11 @@ function feedbackPage() {
 fetch("/api/votes/notes",{headers:{"x-password":p||""}}).then(function(r){if(r.status===401){try{localStorage.removeItem("sitePw")}catch(e){}throw 0}try{localStorage.setItem("sitePw",p)}catch(e){}return r.json()})
 .then(function(j){var n=j.notes||[];document.getElementById("s").textContent=n.length+" notes, newest first.";var l=document.getElementById("l");
 n.slice().reverse().forEach(function(x){var li=document.createElement("li"),b=document.createElement("b"),d=document.createElement("div"),s=document.createElement("small");
-b.textContent=x.v+" · "+x.id;d.textContent=x.why;s.textContent=new Date(x.date).toLocaleString();li.append(b,d,s);l.appendChild(li);});})
+b.textContent=x.v+" · "+x.id;d.textContent=x.why;s.textContent=new Date(x.date).toLocaleString();li.append(b,d,s);
+if(x.id!=="new"){var a=document.createElement("button");a.type="button";a.textContent="Answer publicly";a.style.cssText="display:block;margin-top:6px;font:inherit;font-size:15px;cursor:pointer";
+a.onclick=function(){var obj=prompt("The objection as it will appear publicly (paraphrase it; no names):",x.why);if(!obj)return;var ans=prompt("Your answer:");if(!ans)return;
+fetch("/api/votes/answers",{method:"POST",headers:{"content-type":"application/json","x-password":p||""},body:JSON.stringify({id:x.id,obj:obj,ans:ans})}).then(function(r){return r.json()}).then(function(j){a.textContent=j.ok?"Answered. It now shows on /goals.":(j.error||"Could not save.");});};li.appendChild(a);}
+l.appendChild(li);});})
 .catch(function(){document.getElementById("s").textContent="Wrong password.";});})();</script></body></html>`;
 }
 
@@ -363,6 +404,26 @@ async function votesApi(request, env, url) {
   return json({ ok: true, counts });
 }
 
+// Public answers to readers' objections ("Objections, answered" on /goals).
+async function answersApi(request, env) {
+  if (!F.voting || !env.SITE) return json({ answers: [] });
+  if (request.method === "GET") return json({ answers: await load(env, "votes:answers", []) });
+  if (request.method !== "POST") return json({ ok: false }, 405);
+  if (!checkPassword(request, env)) return json({ ok: false, error: "Wrong password" }, 401);
+  let f;
+  try { f = await request.json(); } catch { return json({ ok: false, error: "Bad data" }, 400); }
+  const answers = await load(env, "votes:answers", []);
+  if (f && Number.isInteger(f.remove)) { answers.splice(f.remove, 1); }
+  else {
+    const id = String(f?.id || ""), obj = String(f?.obj || "").trim().slice(0, 600), ans = String(f?.ans || "").trim().slice(0, 1200);
+    if (!rankedIds.has(id) || !obj || !ans) return json({ ok: false, error: "Need a line, an objection and an answer." }, 400);
+    answers.push({ id, obj, ans, date: new Date().toISOString() });
+    while (answers.length > 500) answers.shift();
+  }
+  await env.SITE.put("votes:answers", JSON.stringify(answers));
+  return json({ ok: true, answers });
+}
+
 // ── Router ──────────────────────────────────────────────────
 export default {
   async fetch(request, env) {
@@ -376,6 +437,7 @@ export default {
       return new Response(feedbackPage(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
     if (p === "/api/goals") return goalsApi(request, env);
     if (p === "/api/votes") return votesApi(request, env, url);
+    if (p === "/api/votes/answers") return answersApi(request, env);
     if (p === "/api/votes/notes") {
       if (!env.SITE || !checkPassword(request, env)) return json({ error: "Unauthorized" }, 401);
       return json({ notes: await load(env, "votes:notes", []) });
