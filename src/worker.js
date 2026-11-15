@@ -88,6 +88,7 @@ blockquote{margin:0 0 14px}blockquote cite{display:block;font-size:17px;font-sty
 .goals time{display:inline-block;margin-left:8px;font-size:17px;font-style:italic;color:var(--faint)}
 .goals .sub{list-style:none;margin:8px 0 4px;padding:0;font-size:19px;color:var(--muted)}.goals .sub li{margin:0 0 4px;padding-left:24px}
 .goals .sub .box{width:11px;height:11px;top:.5em}
+.goals .t .tt{font-weight:600;color:var(--navy)}.goals .amd{margin:4px 0 0;font-size:14px;line-height:1.45;font-style:italic;color:var(--faint)}.goals details.amd>summary{list-style:none;cursor:pointer}.goals details.amd>summary::-webkit-details-marker{display:none}.goals .amd-b{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}.goals .amd-l{margin:6px 0 4px;padding:6px 0 2px 12px;border-left:2px solid var(--line);font-style:normal;font-size:15px;color:var(--muted)}.goals .amd-l>div{margin:0 0 8px}.goals .amd-l b{font-weight:600;color:var(--navy)}
 .note{display:block;margin:4px 0 0;font-size:17px;font-style:italic;color:var(--faint)}
 .group{display:block;margin:12px 0 2px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
 .score{margin-left:8px;font-size:14px;font-style:italic;color:var(--faint)}
@@ -201,8 +202,26 @@ for (const g of site.goals?.list || []) {
   (g.ranked?.groups || []).forEach((gr) => gr.items.forEach((i) => { goalIds.add(i.id); rankedIds.add(i.id); }));
 }
 
-function goalLi(id, text, inner = "", label = text) {
-  return `<li data-id="${esc(id)}"><button class="box" aria-label="Mark done: ${esc(label)}"></button><span class="t">${inline(text)}</span><time></time>${inner}</li>`;
+function goalLi(id, text, inner = "", label = text, lead = "") {
+  return `<li data-id="${esc(id)}"><button class="box" aria-label="Mark done: ${esc(label)}"></button><span class="t">${lead}${inline(text)}</span><time></time>${inner}</li>`;
+}
+
+// Optional dated record for a ranked line: history: [{ date: "2026-11-13", text: "original wording" }, …],
+// oldest first. The first entry is when the line was adopted; every later entry is an amendment.
+// The line's current wording is always its text. Nothing shows when there is no history.
+function shortDate(d) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || ""));
+  return m ? `${MONTHS[+m[2] - 1].slice(0, 3)} ${+m[3]}, ${m[1]}` : esc(d || "");
+}
+function amendments(item) {
+  const h = (item.history || []).filter((e) => e && e.date);
+  if (!h.length) return "";
+  const n = h.length - 1;
+  const head = `Adopted ${shortDate(h[0].date)}`;
+  if (!n) return `<div class="amd">${head}</div>`;
+  const when = n === 1 ? `Amended ${shortDate(h[1].date)}` : `Amended ${n} times · latest ${shortDate(h[n].date)}`;
+  const rows = h.map((e, k) => `<div><b>${k ? `Amendment ${k}` : "Original text"}</b> <i>(${shortDate(e.date)})</i><br>${inline(e.text || "")}</div>`).join("");
+  return `<details class="amd"><summary>${head} · <span class="amd-b">${when}</span></summary><div class="amd-l">${rows}</div></details>`;
 }
 
 function goalsPage() {
@@ -216,7 +235,7 @@ function goalsPage() {
         inner += (g.ranked.note ? `<span class="note">${inline(g.ranked.note)}</span>` : "") +
           g.ranked.groups
             .map((gr) => `<span class="group">${esc(gr.title)}</span><ul class="sub">${gr.items
-              .map((i) => { n++; return goalLi(i.id, `${n}. ${i.text}`, "", `${n}. ${i.text}`); })
+              .map((i) => { n++; const lead = i.title ? `${n}. <b class="tt">${esc(i.title)}.</b> ` : `${n}. `; const label = i.title ? `${n}. ${i.title}. ${i.text}` : `${n}. ${i.text}`; return goalLi(i.id, i.text, amendments(i), label, lead); })
               .join("")}</ul>`)
             .join("");
       }

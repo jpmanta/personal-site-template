@@ -69,7 +69,14 @@ export default {
           note: "The principles I'll build it on, ranked. Vote on any line and tell me what you'd change.",
           groups: [
             { title: "How I work", items: [
-              { id: "r-honest", text: "Tell the truth, even when it costs me" },
+              // Optional: a short bold title, and a dated record (oldest first) that
+              // shows "Adopted … · Amended …" under the line. The first date is when
+              // you adopted it; every later entry is an amendment. Keep text current.
+              { id: "r-honest", title: "Honesty", text: "Tell the truth, even when it costs me",
+                history: [
+                  { date: "2026-11-13", text: "Never lie" },
+                  { date: "2026-11-15", text: "Tell the truth, even when it costs me" },
+                ] },
               { id: "r-customers", text: "Talk to customers every week" },
             ]},
           ],
