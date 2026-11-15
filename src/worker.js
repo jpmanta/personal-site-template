@@ -41,6 +41,10 @@ const prettyDate = (d) => {
 };
 const initials = (n) =>
   String(n || "?").split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+// Everything can say why it's there. A line, Now item or goal can be plain text or { text, why };
+// reading picks, quotes, essays and the main ask take an optional why. It shows as a small "Why?" toggle.
+const textOf = (x) => (x && typeof x === "object" ? x.text : x);
+const why = (x) => (x && typeof x === "object" && x.why ? `<details class="why"><summary>Why?</summary><p>${inline(x.why)}</p></details>` : "");
 
 const html = (body, status = 200) =>
   new Response(body, {
@@ -117,6 +121,8 @@ blockquote{margin:0 0 14px}blockquote cite{display:block;font-size:17px;font-sty
 .ans{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:10px 0 0;padding:10px 0 0;border-top:1px solid var(--line)}.ans:first-of-type{border-top:0;padding-top:0}
 .ans .line{grid-column:1/-1;font-size:14px;font-style:italic;color:var(--faint)}.ans .q{color:var(--muted)}.ans .a{color:var(--fg)}
 @media (max-width:480px){.ans{grid-template-columns:1fr}}
+details.why{margin:2px 0 6px;font-size:18px}details.why>summary{font-size:17px}details.why>p{margin:6px 0 0;padding-left:14px;border-left:1px solid var(--line);color:var(--muted)}
+.ask details.why a{display:inline;padding:0;border-radius:0;background:none;color:var(--navy);text-decoration:underline;font:inherit}
 article p{margin:0 0 18px}article h2{font-size:26px}
 footer{margin-top:56px;font-size:16px;color:var(--faint)}
 @media (max-width:480px){body{font-size:20px}h1{font-size:38px}main{padding-top:64px}}
@@ -156,7 +162,7 @@ function homePage() {
   const sections = [];
   if (site.reading?.length)
     sections.push(["Recommended reading", `<ul class="lines">${site.reading
-      .map((r) => `<li>${r.url ? `<a href="${esc(safeUrl(r.url))}"><i>${esc(r.title)}</i></a>` : `<i>${esc(r.title)}</i>`}${r.author ? `, ${esc(r.author)}` : ""}</li>`)
+      .map((r) => `<li>${r.url ? `<a href="${esc(safeUrl(r.url))}"><i>${esc(r.title)}</i></a>` : `<i>${esc(r.title)}</i>`}${r.author ? `, ${esc(r.author)}` : ""}${why(r)}</li>`)
       .join("")}</ul>`]);
   if (F.essays && essays.length)
     sections.push(["Essays", `<ul class="lines">${essays
@@ -164,7 +170,7 @@ function homePage() {
       .join("")}</ul>`]);
   if (site.quotes?.length)
     sections.push(["Quotes I live by", site.quotes
-      .map((q) => `<blockquote>${inline(q.text)}${q.by ? `<cite>${esc(q.by)}</cite>` : ""}</blockquote>`)
+      .map((q) => `<blockquote>${inline(q.text)}${q.by ? `<cite>${esc(q.by)}</cite>` : ""}${why(q)}</blockquote>`)
       .join("")]);
   const nav = [];
   if (F.goals && site.goals?.list?.length) nav.push(`<a href="/goals">My goals</a>`);
@@ -181,10 +187,10 @@ function homePage() {
 <h1>${esc(site.name)}</h1>
 <hr class="rule">
 <ul class="lines">
-${(site.lines || []).map((l) => `<li>${inline(l)}</li>`).join("\n")}
-${(site.quietLines || []).map((l) => `<li class="quiet">${inline(l)}</li>`).join("\n")}
+${(site.lines || []).map((l) => `<li>${inline(textOf(l))}${why(l)}</li>`).join("\n")}
+${(site.quietLines || []).map((l) => `<li class="quiet">${inline(textOf(l))}${why(l)}</li>`).join("\n")}
 </ul>
-${site.mainAsk?.button && site.mainAsk?.url ? `<div class="ask">${site.mainAsk.text ? `<p>${inline(site.mainAsk.text)}</p>` : ""}<a href="${esc(safeUrl(site.mainAsk.url))}">${esc(site.mainAsk.button)}</a></div>` : ""}
+${site.mainAsk?.button && site.mainAsk?.url ? `<div class="ask">${site.mainAsk.text ? `<p>${inline(site.mainAsk.text)}</p>` : ""}<a href="${esc(safeUrl(site.mainAsk.url))}">${esc(site.mainAsk.button)}</a>${why(site.mainAsk)}</div>` : ""}
 <div class="more">
 ${nav.length ? `<nav class="nav" aria-label="Pages">${nav.join("")}</nav>` : ""}
 ${sections.map(([t, b]) => `<details><summary>${t}</summary><div class="body">${b}</div></details>`).join("\n")}
@@ -239,7 +245,7 @@ function goalsPage() {
               .join("")}</ul>`)
             .join("");
       }
-      return goalLi(g.id, g.text, inner);
+      return goalLi(g.id, g.text, why(g) + inner);
     })
     .join("\n");
   const answers = F.voting && rankedIds.size
@@ -359,7 +365,7 @@ var u=new SpeechSynthesisUtterance(t);u.rate=1;u.onend=function(){on=false;b.tex
     title: `${e.title} · ${site.name}`,
     description: e.description || String(e.body || "").replace(/[#*>\[\]]/g, "").slice(0, 155),
     path: "/essays/" + e.slug,
-    body: `<article><h1>${esc(e.title)}</h1><p class="when" style="margin:10px 0 0">${prettyDate(e.date)}</p><hr class="rule">${listen}${prose(e.body)}</article>`,
+    body: `<article><h1>${esc(e.title)}</h1><p class="when" style="margin:10px 0 0">${prettyDate(e.date)}</p>${why(e)}<hr class="rule">${listen}${prose(e.body)}</article>`,
   });
 }
 
@@ -368,7 +374,7 @@ function nowPage() {
     title: `Now · ${site.name}`,
     path: "/now",
     body: `<h1>Now</h1><hr class="rule">${site.now.updated ? `<p class="intro">Updated ${esc(site.now.updated)}.</p>` : ""}<ul class="lines">${(site.now.items || [])
-      .map((i) => `<li>${inline(i)}</li>`)
+      .map((i) => `<li>${inline(textOf(i))}${why(i)}</li>`)
       .join("")}</ul>`,
   });
 }

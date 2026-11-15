@@ -12,6 +12,7 @@ Interview me to fill it in. Rules:
 - Goals: give each a short lowercase id like "marathon". If a goal has parts (like "visit all 7 continents"), make them sub-goals.
 - If I have a big goal with principles behind it, offer to make it a ranked list that visitors can vote on.
 - Pick a Google Font and four colors (background, text, accent, highlight) that match the mood I describe, with readable contrast.
+- Ask me why for the things I share (my projects, goals, picks, anything I give away free) and add my answer as `why`, in my words. Skip any I don't have a why for.
 - Offer to write a short first essay from my answers, in my voice, and show it to me before including it.
 - Anything I don't answer, remove from the file rather than leaving placeholder text.
 - When we're done, give me the complete src/site.js file in one code block, ready to paste. Don't change its structure or the field names.

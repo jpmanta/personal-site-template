@@ -13,9 +13,12 @@ export default {
   photo: "",
 
   // One line each, shown under your name. [text](link) makes a link.
+  // Anything on your site can say why it's there: write { text: "…", why: "…" }
+  // instead of plain text, or add why: "…" to a reading pick, quote, essay,
+  // goal or the main ask. It shows as a small "Why?" that opens.
   lines: [
     "Studying something at Some University.",
-    "Building [My Project](https://example.com), 2026 onward.",
+    { text: "Building [My Project](https://example.com), 2026 onward.", why: "Because nobody else was building it, and I needed it." },
   ],
   // Optional: one main ask, shown as a card under your lines.
   // Leave it out (or delete it) if you don't want one.
