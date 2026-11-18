@@ -95,6 +95,8 @@ blockquote{margin:0 0 14px}blockquote cite{display:block;font-size:17px;font-sty
 .goals .t .tt{font-weight:600;color:var(--navy)}.goals .amd{margin:4px 0 0;font-size:14px;line-height:1.45;font-style:italic;color:var(--faint)}.goals details.amd>summary{list-style:none;cursor:pointer}.goals details.amd>summary::-webkit-details-marker{display:none}.goals .amd-b{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}.goals .amd-l{margin:6px 0 4px;padding:6px 0 2px 12px;border-left:2px solid var(--line);font-style:normal;font-size:15px;color:var(--muted)}.goals .amd-l>div{margin:0 0 8px}.goals .amd-l b{font-weight:600;color:var(--navy)}
 .note{display:block;margin:4px 0 0;font-size:17px;font-style:italic;color:var(--faint)}
 .group{display:block;margin:12px 0 2px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
+.group .rg{color:var(--faint);letter-spacing:0}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .score{margin-left:8px;font-size:14px;font-style:italic;color:var(--faint)}
 .vrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 2px}.goals li>time:empty{display:none}
 .vrow button{font:400 14px/1 system-ui,-apple-system,sans-serif;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);cursor:pointer}
@@ -233,6 +235,8 @@ function amendments(item) {
 function goalsPage() {
   const G = site.goals;
   let n = 0;
+  // Each section shows the range of line numbers it holds ("44–55"), computed from the list so it stays right as lines are added or cut.
+  const range = (a, b) => (b >= a ? ` <span class="rg" aria-hidden="true">${a === b ? a : a + "\u2013" + b}</span><span class="vh">${a === b ? "line " + a : "lines " + a + " to " + b}</span>` : "");
   const items = G.list
     .map((g) => {
       let inner = "";
@@ -240,7 +244,7 @@ function goalsPage() {
       if (g.ranked?.groups?.length) {
         inner += (g.ranked.note ? `<span class="note">${inline(g.ranked.note)}</span>` : "") +
           g.ranked.groups
-            .map((gr) => `<span class="group">${esc(gr.title)}</span><ul class="sub">${gr.items
+            .map((gr) => `<span class="group">${esc(gr.title)}${range(n + 1, n + gr.items.length)}</span><ul class="sub">${gr.items
               .map((i) => { n++; const lead = i.title ? `${n}. <b class="tt">${esc(i.title)}.</b> ` : `${n}. `; const label = i.title ? `${n}. ${i.title}. ${i.text}` : `${n}. ${i.text}`; return goalLi(i.id, i.text, amendments(i), label, lead); })
               .join("")}</ul>`)
             .join("");

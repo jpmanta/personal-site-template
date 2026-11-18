@@ -4,6 +4,7 @@ Updates to this template, newest first. If your site was made from it, your site
 
 Updates only ever change the engine (`src/worker.js`) and these instructions. Your words, photo and settings (`src/site.js`, `public/`, `wrangler.jsonc`) are never touched.
 
+- **Nov 18, 2026:** Each section of a ranked list now shows the numbers of the lines it holds, like "44–55", next to its name. The range is worked out from your list, so it stays right when you add or cut a line. Screen readers hear "lines 44 to 55". Nothing to change in `src/site.js`.
 - **Nov 15, 2026:** Anything on your site can now say why it's there. Add `why: "…"` to a reading pick, quote, essay, goal or your main ask, or write a line or Now item as `{ text: "…", why: "…" }`. It shows as a small "Why?" that opens. Optional: without a `why`, nothing changes. There's an example in `src/site.js`.
 - **Nov 15, 2026:** Each ranked goal can show when it was adopted and amended, with the original text and every amendment one tap away. Optional: add `history` (and a short bold `title`) to a line in `src/site.js`; there's an example there. Lines without history look the same as before.
 - **Nov 14, 2026:** Voting is now one standing vote per person per line, instead of one vote a day. Every ranked line has ▲ Keep and ▼ Cut buttons with live counts. Tap one to vote, tap it again to take your vote back, or tap the other to switch. "Help me rewrite this list" now offers just Keep it and Cut it: it sets the same vote and sends your note. Votes counted before this update stay in the totals.
