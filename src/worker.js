@@ -2,9 +2,10 @@
 // everything you'd want to change lives in src/site.js.
 
 import site from "./site.js";
+import { EmailMessage } from "cloudflare:email";
 
 const F = Object.assign(
-  { goals: true, voting: true, essays: true, readAloud: true, now: true },
+  { goals: true, voting: true, essays: true, readAloud: true, now: true, subscriberEmails: false },
   site.features || {}
 );
 const T = Object.assign(
@@ -513,6 +514,90 @@ async function answersApi(request, env) {
   return json({ ok: true, answers });
 }
 
+// ── New-subscriber email (optional, off by default; see README) ──
+// Buttondown sends each event to /api/buttondown/hook, signed with your signing key. When someone confirms, you get
+// one plain email: their address, your subscriber count, the page they signed up from, and any flag you set in
+// site.subscriberFlags (for example { "school.edu": "School" }). Always answers 200 once the signature checks out,
+// so Buttondown never retries forever. Needs: features.subscriberEmails = true, an EMAIL send_email binding,
+// and the secrets BUTTONDOWN_API_KEY, BUTTONDOWN_SIGNING_KEY and OWNER_EMAIL.
+const b64 = (s) => { const b = new TextEncoder().encode(s); let x = ""; for (const c of b) x += String.fromCharCode(c); return btoa(x); };
+const mimeHdr = (s) => "=?UTF-8?B?" + b64(s) + "?=";
+async function signatureOk(raw, header, key) {
+  let sig = String(header || "").trim();
+  if (sig.toLowerCase().startsWith("sha256=")) sig = sig.slice(7);
+  if (!/^[0-9a-f]{64}$/i.test(sig)) return false;
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+  return crypto.subtle.verify("HMAC", k, new Uint8Array(sig.match(/../g).map((h) => parseInt(h, 16))), raw);
+}
+async function buttondown(env, path) {
+  const r = await fetch("https://api.buttondown.com/v1" + path, { headers: { authorization: "Token " + env.BUTTONDOWN_API_KEY, accept: "application/json" } });
+  if (!r.ok) throw new Error("Buttondown " + path.split("?")[0] + " answered " + r.status);
+  return r.json();
+}
+function subscriberEmail(from, to, sub, count) {
+  const clean = (s) => String(s || "").replace(/[\r\n]+/g, " ").trim();
+  const email = clean(sub.email_address) || "(address not found)";
+  const rows = [["Email", email], ["Subscriber", "#" + count]];
+  if (clean(sub.referrer_url)) rows.push(["Signed up from", clean(sub.referrer_url)]);
+  for (const [domain, label] of Object.entries(site.subscriberFlags || {}))
+    if (email.toLowerCase().endsWith("@" + String(domain).toLowerCase())) rows.push([label, "Yes"]);
+  const subject = `New subscriber: ${email} (#${count})`;
+  const text = "New subscriber\n\n" + rows.map((r) => r[0] + ": " + r[1]).join("\n") + "\n";
+  const font = `'${T.font}',Georgia,'Times New Roman',serif`;
+  const htmlBody = `<!doctype html><html><body style="margin:0;padding:24px;background:${T.background};font-family:${font};color:${T.accent}">`
+    + `<div style="max-width:520px;margin:0 auto;border-top:3px solid ${T.highlight};padding-top:18px">`
+    + `<p style="margin:0 0 14px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:${T.highlight}">New subscriber</p>`
+    + `<table style="border-collapse:collapse;font-size:18px;line-height:1.5">`
+    + rows.map((r) => `<tr><td style="padding:2px 18px 2px 0;opacity:.7">${esc(r[0])}</td><td style="padding:2px 0">${esc(r[1])}</td></tr>`).join("")
+    + `</table></div></body></html>`;
+  const b = "sub-" + crypto.randomUUID();
+  const wrap = (s) => b64(s).replace(/.{76}/g, "$&\r\n");
+  const raw = [
+    `From: ${mimeHdr(site.name || "My site")} <${from}>`, `To: <${to}>`, `Subject: ${mimeHdr(subject)}`,
+    `Message-ID: <${crypto.randomUUID()}@${from.split("@")[1]}>`, `Date: ${new Date().toUTCString()}`, "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${b}"`, "",
+    "--" + b, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", wrap(text),
+    "--" + b, "Content-Type: text/html; charset=UTF-8", "Content-Transfer-Encoding: base64", "", wrap(htmlBody),
+    "--" + b + "--", "",
+  ].join("\r\n");
+  return new EmailMessage(from, to, raw);
+}
+async function subscriberHook(request, env, url) {
+  if (!env.BUTTONDOWN_SIGNING_KEY) return json({ error: "not configured" }, 503);
+  const header = request.headers.get("x-buttondown-signature");
+  if (!header) return json({ error: "missing signature" }, 401);
+  const raw = await request.arrayBuffer();
+  if (raw.byteLength > 65536 || !(await signatureOk(raw, header, env.BUTTONDOWN_SIGNING_KEY))) return json({ error: "bad signature" }, 401);
+  try {
+    const ev = JSON.parse(new TextDecoder().decode(raw));
+    if (!ev || ev.event_type !== "subscriber.confirmed") return json({ ok: true, ignored: true });
+    if (!ev.id || !env.SITE) return json({ ok: true });
+    const seen = "bd:evt:" + String(ev.id).slice(0, 120);
+    if (await env.SITE.get(seen)) return json({ ok: true, duplicate: true });
+    await env.SITE.put(seen, "1", { expirationTtl: 604800 });
+    const d = ev.data || {};
+    const id = typeof d.subscriber === "object" && d.subscriber ? d.subscriber.id : d.subscriber || d.subscriber_id || d.id;
+    let sub = {};
+    try { if (id && env.BUTTONDOWN_API_KEY) sub = await buttondown(env, "/subscribers/" + encodeURIComponent(id)); }
+    catch (e) { console.log("subscriber lookup failed", e && e.message); }
+    const prev = await env.SITE.get("bd:count");
+    let count = prev === null ? NaN : Number(prev) + 1;
+    if (!Number.isFinite(count)) {
+      try { count = Number((await buttondown(env, "/subscribers?type=regular")).count); } catch (e) { console.log("subscriber count failed", e && e.message); }
+    }
+    if (Number.isFinite(count) && count > 0) await env.SITE.put("bd:count", String(count)); else count = "?";
+    const to = String(env.OWNER_EMAIL || "").trim();
+    if (!to || !env.EMAIL) { console.log("no OWNER_EMAIL or EMAIL binding, email skipped"); return json({ ok: true, emailed: false }); }
+    const from = String(env.NOTIFY_FROM || "notify@" + url.hostname.replace(/^www\./, "")).trim();
+    try { await env.EMAIL.send(subscriberEmail(from, to, sub, count)); }
+    catch (e) { console.log("subscriber email failed", e && e.message); return json({ ok: true, emailed: false }); }
+    return json({ ok: true, emailed: true });
+  } catch (e) {
+    console.log("subscriber hook error", e && e.message);
+    return json({ ok: true, error: true });
+  }
+}
+
 // ── Router ──────────────────────────────────────────────────
 export default {
   async fetch(request, env) {
@@ -524,6 +609,7 @@ export default {
     if (p === "/goals" && F.goals && site.goals?.list?.length) return html(goalsPage());
     if (p === "/goals/feedback" && F.voting)
       return new Response(feedbackPage(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
+    if (p === "/api/buttondown/hook" && request.method === "POST" && F.subscriberEmails) return subscriberHook(request, env, url);
     if (p === "/api/goals") return goalsApi(request, env);
     if (p === "/api/votes") return votesApi(request, env, url);
     if (p === "/api/votes/answers") return answersApi(request, env);

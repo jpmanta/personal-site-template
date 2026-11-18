@@ -33,6 +33,13 @@ That's it. To change anything later, use the remix prompt at the bottom of START
 
 **How do I turn something off?** In `src/site.js`, set any of the `features` to `false`.
 
+**Can I get an email when someone subscribes to my newsletter?** Yes, if your newsletter is on [Buttondown](https://buttondown.com) and your site is on your own domain. It's off until you set it up:
+1. In Cloudflare, turn on **Email Routing** for your domain and verify your own address there.
+2. In `wrangler.jsonc`, add `"send_email": [{ "name": "EMAIL", "destination_address": "you@example.com" }]` with that address.
+3. In Cloudflare, open your Worker → **Settings → Variables and Secrets** and add three secrets: `BUTTONDOWN_API_KEY` (Buttondown → Settings → API), `BUTTONDOWN_SIGNING_KEY` (any long random text) and `OWNER_EMAIL` (the same address as in step 2). Optional: `NOTIFY_FROM`, the address it sends from (default `notify@yourdomain`).
+4. In `src/site.js`, set `subscriberEmails: true` under `features`.
+5. In Buttondown → **Settings → Webhooks → New webhook**: URL `https://yourdomain/api/buttondown/hook`, event `subscriber.confirmed`, and the same signing key.
+
 **I forgot my password.** In Cloudflare, open your Worker → **Settings → Variables and Secrets**, and edit `ADMIN_PASSWORD`.
 
 ## What's inside

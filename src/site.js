@@ -129,5 +129,9 @@ My goals, which I cross off as I go, and the ideas I keep coming back to. Tell m
     essays: true,    // the /essays page
     readAloud: true, // a "Listen" button on essays (free, uses the browser's voice)
     now: true,       // the /now page
+    subscriberEmails: false, // email me when someone subscribes on Buttondown (needs setup, see README)
   },
+
+  // Optional: flag new subscribers from a domain in that email, e.g. { "school.edu": "School" }.
+  subscriberFlags: {},
 };
